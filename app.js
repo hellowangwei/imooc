@@ -41,13 +41,19 @@ app.get('/',function(req,res){
 // signup
 app.post('/user/signup',function(req,res){
     var _user=req.body.user
-    var user = new User(_user)
 
-    user.save(function(err,user){
+    User.findOne({name: _user.name}, function(err,user){
         if(err){console.log(err)}
-        console.log(user);
-        res.redirect('/admin/userlist')
+        if(user){return res.redirect('/')}
+        else{
+            var user = new User(_user)
+            user.save(function(err,user){
+                if(err){console.log(err)}
+                res.redirect('/admin/userlist')
+            });
+        }
     });
+
 });
 
 

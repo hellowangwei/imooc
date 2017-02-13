@@ -5,27 +5,46 @@ var express = require('express');
 var path = require('path');
 var bodyParser = require('body-parser');
 var mongoose = require('mongoose');
+
 var _ = require('underscore')
 var serveStatic = require('serve-static');
 var Movie = require('./models/movie');
 var User = require('./models/user');
-
+var session = require('express-session')
+var mongoStore = require('connect-mongo')(session)
 var port = process.env.PORT || 3000;
 var app = express();
+var dbUrl= 'mongodb://localhost/imooc'
+mongoose.connect(dbUrl);
 
-mongoose.connect('mongodb://localhost/imooc');
 
 app.set('view engine', 'jade');
 app.set('views', './views/pages');
 app.use(bodyParser.urlencoded({extended:true}));
 app.use(express.static(path.join(__dirname)))
 // app.use(serveStatic('./node_modules'));
+app.use(session({
+    secret: 'imooc',
+    store: new mongoStore({
+        url: dbUrl,
+
+        collection: 'session'
+    })
+}));
 app.locals.moment = require('moment');
 app.listen(port);
 
 console.log('imooc start on port ' + port);
 
+// index page
 app.get('/',function(req,res){
+    console.log('user in session')
+    console.log(req.session.user)
+
+    var _user = req.session.user
+    if(_user){
+        app.locals.user = _user;
+    }
     Movie.fetch(function(err,movies){
         if(err){
             console.log(err);
@@ -55,6 +74,38 @@ app.post('/user/signup',function(req,res){
     });
 
 });
+// sinin
+app.post('/user/signin',function(req,res){
+    var _user = req.body.user
+    var name = _user.name
+    var password = _user.password
+    User.findOne({name: name},function(err,user){
+        if(err){console.log(err)}
+        if(!user){
+            return res.redirect('/')
+        }
+
+        user.comparePassword(password,function(err,isMatch){
+            if(err){console.log(err)}
+            if(isMatch){
+                req.session.user = user;
+                return res.redirect('/')}
+            else{
+                console.log('password is not matched')
+            }
+        })
+
+    })
+})
+
+
+// logout
+app.get('/logout',function(req,res){
+    delete req.session.user
+    delete app.locals.user
+    res.redirect('/')
+})
+
 
 
 //userlist page
